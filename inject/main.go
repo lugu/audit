@@ -257,7 +257,7 @@ func test5() {
 	log.Printf("test5: call a method to a remote object")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
-	endpoint := connect(*VictimAddr, true)
+	endpoint := connect(*VictimAddr, false)
 	go listenReply(endpoint, done)
 
 	err := inject(endpoint, callMessages())
@@ -280,10 +280,10 @@ func main() {
 		"tcp://127.0.0.1:9559", "service directory url")
 	flag.Parse()
 
-	test0()
-	test1()
-	test2()
-	test3()
-	test4()
+	// test0()
+	// test1()
+	// test2()
+	// test3()
+	// test4()
 	test5()
 }

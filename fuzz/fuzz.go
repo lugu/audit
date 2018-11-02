@@ -3,9 +3,9 @@ package fuzz
 import (
 	"bytes"
 	"github.com/lugu/qiloop/bus/client"
+	"github.com/lugu/qiloop/bus/client/services"
 	"github.com/lugu/qiloop/bus/net"
-	"github.com/lugu/qiloop/bus/services"
-	"github.com/lugu/qiloop/bus/session"
+	"github.com/lugu/qiloop/bus/server"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
 	"log"
@@ -31,7 +31,7 @@ func Fuzz(data []byte) int {
 
 	// check response
 	buf := bytes.NewBuffer(data)
-	capability, err := session.ReadCapabilityMap(buf)
+	capability, err := server.ReadCapabilityMap(buf)
 	if err == nil {
 		statusValue, ok := capability[client.KeyState]
 		if ok {

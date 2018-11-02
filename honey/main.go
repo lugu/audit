@@ -2,7 +2,8 @@ package main
 
 import (
 	"github.com/lugu/qiloop/bus/net"
-	"github.com/lugu/qiloop/bus/session"
+	"github.com/lugu/qiloop/bus/server"
+	"github.com/lugu/qiloop/bus/server/directory"
 	"log"
 )
 
@@ -11,9 +12,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
-	directory := session.NewDirectoryService()
-	router := session.NewRouter()
-	router.Add(directory)
-	server := session.NewServer(listener, router)
-	server.Run()
+
+	obj := directory.ServiceDirectoryObject(directory.NewServiceDirectory())
+	srv := server.NewServer2(listener, server.NewRouter())
+	srv.NewService("ServiceDirectory", obj)
+	srv.Run()
 }

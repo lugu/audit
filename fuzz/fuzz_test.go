@@ -1,8 +1,8 @@
 package fuzz_test
 
 import (
-	"github.com/lugu/qiloop/bus/cmd/fuzz"
-	"github.com/lugu/qiloop/bus/session"
+	"github.com/lugu/audit/fuzz"
+	"github.com/lugu/qiloop/bus/server"
 	"io/ioutil"
 	gonet "net"
 	"path/filepath"
@@ -19,15 +19,15 @@ func TestFuzz(t *testing.T) {
 	passwords := map[string]string{
 		"nao": "nao",
 	}
-	object := session.NewServiceAuthenticate(passwords)
-	ns := session.NewNamespace(object)
-	router := session.NewRouter()
-	router.Add(ns)
+	object := server.NewServiceAuthenticate(passwords)
+	service := server.NewService(object)
+	router := server.NewRouter()
+	router.Add(service)
 	listener, err := gonet.Listen("tcp", ":9559")
 	if err != nil {
 		panic(err)
 	}
-	server := session.NewServer(listener, router)
+	server := server.NewServer2(listener, router)
 	go server.Run()
 
 	fuzz.ServerURL = "tcp://localhost:9559"
