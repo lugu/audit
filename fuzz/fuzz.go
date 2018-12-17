@@ -3,10 +3,8 @@ package fuzz
 import (
 	"bytes"
 	"github.com/lugu/qiloop/bus/client"
-	"github.com/lugu/qiloop/bus/client/services"
 	"github.com/lugu/qiloop/bus/net"
 	"github.com/lugu/qiloop/bus/server"
-	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
 	"log"
 )
@@ -23,11 +21,8 @@ func Fuzz(data []byte) int {
 		log.Fatalf("failed to contact %s: %s", ServerURL, err)
 	}
 
-	client0 := client.NewClient(endpoint)
-	proxy0 := client.NewProxy(client0, object.MetaService0, serviceID, objectID)
-	server0 := services.ServerProxy{proxy0}
-
-	data, err0 := server0.CallID(actionID, data)
+	clt := client.NewClient(endpoint)
+	data, err0 := clt.Call(serviceID, objectID, actionID, data)
 
 	// check response
 	buf := bytes.NewBuffer(data)

@@ -3,8 +3,9 @@ package fuzz_test
 import (
 	"github.com/lugu/audit/fuzz"
 	"github.com/lugu/qiloop/bus/server"
+	"github.com/lugu/qiloop/bus/server/directory"
+	"github.com/lugu/qiloop/bus/util"
 	"io/ioutil"
-	gonet "net"
 	"path/filepath"
 	"testing"
 )
@@ -19,18 +20,15 @@ func TestFuzz(t *testing.T) {
 	passwords := map[string]string{
 		"nao": "nao",
 	}
-	object := server.NewServiceAuthenticate(passwords)
-	service := server.NewService(object)
-	router := server.NewRouter()
-	router.Add(service)
-	listener, err := gonet.Listen("tcp", ":9559")
+	addr := util.NewUnixAddr()
+
+	auth := server.Dictionary(passwords)
+	server, err := directory.NewServer(addr, auth)
 	if err != nil {
 		panic(err)
 	}
-	server := server.NewServer2(listener, router)
-	go server.Run()
 
-	fuzz.ServerURL = "tcp://localhost:9559"
+	fuzz.ServerURL = addr
 
 	data, err := ioutil.ReadFile(filepath.Join("testdata", "cap-auth-failure.bin"))
 	if err != nil {
@@ -38,5 +36,5 @@ func TestFuzz(t *testing.T) {
 	}
 	fuzz.Fuzz(data)
 
-	server.Stop()
+	server.Terminate()
 }
