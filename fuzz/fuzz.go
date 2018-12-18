@@ -16,6 +16,22 @@ const objectID = 0
 const actionID = 8
 
 func Fuzz(data []byte) int {
+
+	buf := bytes.NewBuffer(data)
+	cm, err := server.ReadCapabilityMap(buf)
+	if err != nil {
+		return 0
+	}
+
+	var out bytes.Buffer
+	err = server.WriteCapabilityMap(cm, &out)
+	if err != nil {
+		panic(err)
+	}
+	return 1
+}
+
+func Fuzz2(data []byte) int {
 	endpoint, err := net.DialEndPoint(ServerURL)
 	if err != nil {
 		log.Fatalf("failed to contact %s: %s", ServerURL, err)

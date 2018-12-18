@@ -1,7 +1,9 @@
 package fuzz_test
 
 import (
+	"bytes"
 	"github.com/lugu/audit/fuzz"
+	"github.com/lugu/qiloop/bus/client"
 	"github.com/lugu/qiloop/bus/server"
 	"github.com/lugu/qiloop/bus/server/directory"
 	"github.com/lugu/qiloop/bus/util"
@@ -37,4 +39,26 @@ func TestFuzz(t *testing.T) {
 	fuzz.Fuzz(data)
 
 	server.Terminate()
+}
+
+func WriteReadTest(cm client.CapabilityMap) error {
+	var buf bytes.Buffer
+	err := server.WriteCapabilityMap(cm, &buf)
+	if err != nil {
+		return err
+	}
+	_, err = server.ReadCapabilityMap(&buf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func TestSamples(t *testing.T) {
+	for name, metacap := range fuzz.GetSamples() {
+		err := WriteReadTest(metacap)
+		if err != nil {
+			t.Errorf("failed on %s: %s", name, err)
+		}
+	}
 }

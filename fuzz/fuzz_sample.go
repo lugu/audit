@@ -1,8 +1,12 @@
 package fuzz
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/lugu/qiloop/bus/client"
+	"github.com/lugu/qiloop/bus/server"
 	"github.com/lugu/qiloop/type/value"
+	"os"
 )
 
 type CapabilityMap client.CapabilityMap
@@ -83,11 +87,37 @@ func stringsNao() client.CapabilityMap {
 	return client.CapabilityMap(cm)
 }
 
-func GetSamples() []client.CapabilityMap {
-	samples := make([]client.CapabilityMap, 0)
-	samples = append(samples, basicNao())
-	samples = append(samples, justNao())
-	samples = append(samples, extraNao())
-	samples = append(samples, stringsNao())
+func GetSamples() map[string]client.CapabilityMap {
+	samples := make(map[string]client.CapabilityMap)
+	samples["basic"] = basicNao()
+	samples["nao"] = justNao()
+	samples["extra"] = extraNao()
+	samples["strings"] = stringsNao()
 	return samples
+}
+
+func WriteSample(filename string, cm client.CapabilityMap) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	err = server.WriteCapabilityMap(cm, &buf)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func WriteCorpus() {
+	for name, metacap := range GetSamples() {
+		err := WriteSample("cap-auth-"+name+".bin", metacap)
+		if err != nil {
+			fmt.Errorf("failed to write %s: %s", name, err)
+		}
+	}
 }
