@@ -58,7 +58,7 @@ func listenReply(endpoint net.EndPoint, done chan int) {
 	endpoint.AddHandler(filter, consumer, closer)
 }
 
-func listenServiceAddedSignal(addr string, done chan int, tag string) chan int {
+func listenServiceAddedSignal(addr string, done chan int, tag string) func() {
 	sess, err := session.NewSession(addr)
 	if err != nil {
 		log.Fatalf("failed to connect: %s", err)
@@ -69,21 +69,20 @@ func listenServiceAddedSignal(addr string, done chan int, tag string) chan int {
 		log.Fatalf("failed to connect log manager: %s", err)
 	}
 
-	cancel := make(chan int)
-
-	channel, err := directory.SignalServiceAdded(cancel)
+	cancel, channel, err := directory.SubscribeServiceAdded()
 	if err != nil {
 		log.Fatalf("failed to get remote signal channel: %s", err)
 	}
 
 	go func() {
 		for e := range channel {
-			if e.P1 == tag {
+			if e.Name == tag {
 				log.Printf("%s was emited", tag)
 				done <- 1
 				return
 			}
-			log.Printf("service added: %s (%d) - %s", e.P1, e.P0, tag)
+			log.Printf("service added: %s (%d) - %s", e.Name,
+				e.ServiceID, tag)
 		}
 	}()
 	return cancel
@@ -199,7 +198,7 @@ func test1() {
 	case _ = <-wait:
 		log.Printf("timeout")
 	}
-	cancel <- 1
+	cancel()
 }
 
 // test 2: post a signal directly to the targeted service
@@ -223,7 +222,7 @@ func test2() {
 	case _ = <-wait:
 		log.Printf("timeout")
 	}
-	cancel <- 1
+	cancel()
 }
 
 // test 3: post a signal directly to the targeted service
@@ -248,7 +247,7 @@ func test3() {
 	case _ = <-wait:
 		log.Printf("timeout")
 	}
-	cancel <- 1
+	cancel()
 }
 
 // test 4: call a method directly to the targeted service

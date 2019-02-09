@@ -10,11 +10,11 @@ import (
 )
 
 func listenTLS(addr string) {
-	// openssl genrsa -out server.key 2048
-	// openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
-
 	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
 	if err != nil {
+		log.Printf("Failed to load certificate. Create certificate with:")
+		log.Printf("> openssl genrsa -out server.key 2048")
+		log.Printf("> openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650")
 		log.Fatalf("%s", err)
 		return
 	}
