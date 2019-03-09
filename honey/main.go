@@ -11,5 +11,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
-	dir.WaitTerminate()
+	done := dir.WaitTerminate()
+	<-done
 }
