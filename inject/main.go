@@ -9,7 +9,10 @@ import (
 	"github.com/lugu/qiloop/bus/net"
 	"github.com/lugu/qiloop/bus/session"
 	"github.com/lugu/qiloop/type/basic"
+	"github.com/lugu/qiloop/type/object"
+	"github.com/lugu/qiloop/type/value"
 	"log"
+	gonet "net"
 	"time"
 )
 
@@ -151,6 +154,29 @@ func test0() {
 	}
 }
 
+func listenConnect(network, address string, done chan int) {
+	l, err := gonet.Listen(network, address)
+	if err != nil {
+		log.Fatalf("cannot listen %s: %s", address, err)
+	}
+	_, err = l.Accept()
+	if err != nil {
+		log.Printf("connection error: %s", err)
+	}
+	done <- 1
+}
+
+func capabilityMap(addr string) client.CapabilityMap {
+	log.Printf("capabilityMap: not yet implemented")
+	return client.CapabilityMap{
+		"ClientServerSocket":    value.Bool(true),
+		"MessageFlags":          value.Bool(true),
+		"MetaObjectCache":       value.Bool(true),
+		"RemoteCancelableCalls": value.Bool(true),
+		"Hello":                 value.String(addr),
+	}
+}
+
 // test 1: post a signal directly to a service
 //	1. connect to service
 //	2. authenticate
@@ -251,7 +277,7 @@ func test4() {
 // test 5: call a method to a remote object
 //	1. connect to service
 //	2. authenticate
-//	2. call a method of another service
+//	3. call a method of another service
 //	=> can by-pass authentication
 func test5() {
 	log.Printf("test5: call a method to a remote object")
@@ -272,6 +298,39 @@ func test5() {
 	}
 }
 
+// test 6: authenticate with an object
+//	1. connect to service
+//	2. authenticate with an object
+//	3. wait for an incomming connection
+//	=> can by-pass authentication
+func test6() {
+	log.Printf("test6: authenticate with a remote object")
+	done := make(chan int)
+	wait := time.After(time.Second * 5)
+	endpoint := connect(*VictimAddr, false)
+	network := "tcp"
+	address := "127.0.0.1:6754"
+	url := network + "://" + address
+	go listenConnect(network, address, done)
+
+	client0 := client.NewClient(endpoint)
+	proxy0 := client.NewProxy(client0, object.MetaService0, 0, 0)
+	server0 := client.ServerProxy{
+		proxy0,
+	}
+	permission := capabilityMap(url)
+	_, err := server0.Authenticate(permission) // ignore response
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+	select {
+	case _ = <-done:
+		log.Printf("success")
+	case _ = <-wait:
+		log.Printf("timeout")
+	}
+}
+
 func main() {
 
 	VictimAddr = flag.String("qi-url-victim",
@@ -280,10 +339,11 @@ func main() {
 		"tcp://127.0.0.1:9559", "service directory url")
 	flag.Parse()
 
-	// test0()
-	// test1()
-	// test2()
-	// test3()
-	// test4()
+	test0()
+	test1()
+	test2()
+	test3()
+	test4()
 	test5()
+	test6()
 }
