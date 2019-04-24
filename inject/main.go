@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/lugu/qiloop/bus/client"
-	"github.com/lugu/qiloop/bus/client/services"
+	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/bus/net"
+	"github.com/lugu/qiloop/bus/services"
 	"github.com/lugu/qiloop/bus/session"
 	"github.com/lugu/qiloop/type/basic"
 	"github.com/lugu/qiloop/type/object"
@@ -63,8 +63,8 @@ func listenServiceAddedSignal(addr string, done chan int, tag string) func() {
 	if err != nil {
 		log.Fatalf("failed to connect: %s", err)
 	}
-
-	directory, err := services.NewServiceDirectory(sess, 1)
+	proxies := services.Services(sess)
+	directory, err := proxies.ServiceDirectory()
 	if err != nil {
 		log.Fatalf("failed to connect log manager: %s", err)
 	}
@@ -119,7 +119,7 @@ func inject(endpoint net.EndPoint, messages []net.Message) error {
 
 func connect(addr string, doesAuth bool) net.EndPoint {
 	if doesAuth {
-		cache, err := client.NewCachedSession(addr)
+		cache, err := bus.NewCachedSession(addr)
 		if err != nil {
 			log.Fatalf("failed to connect: %s", err)
 		}
@@ -165,14 +165,15 @@ func listenConnect(network, address string, done chan int) {
 	done <- 1
 }
 
-func capabilityMap(addr string) client.CapabilityMap {
-	log.Printf("capabilityMap: not yet implemented")
-	return client.CapabilityMap{
+func capabilityMap(addr string) bus.CapabilityMap {
+	log.Printf("TODO: capabilityMap: not yet implemented")
+	return bus.CapabilityMap{
 		"ClientServerSocket":    value.Bool(true),
 		"MessageFlags":          value.Bool(true),
 		"MetaObjectCache":       value.Bool(true),
 		"RemoteCancelableCalls": value.Bool(true),
 		"Hello":                 value.String(addr),
+		// TODO: include an ObjectReference here.
 	}
 }
 
@@ -312,13 +313,18 @@ func test6() {
 	url := network + "://" + address
 	go listenConnect(network, address, done)
 
-	client0 := client.NewClient(endpoint)
-	proxy0 := client.NewProxy(client0, object.MetaService0, 0, 0)
-	server0 := client.ServerProxy{
-		proxy0,
+	// Service zero is not a registered service. Create a cached
+	// session to resolve its name manually.
+	cache := bus.NewCache(endpoint)
+	cache.AddService("ServiceZero", 0, object.MetaService0)
+	proxies := bus.Services(cache)
+	service0, err := proxies.ServiceServer()
+	if err != nil {
+		log.Fatalf("failed to connect log manager: %s", err)
 	}
+
 	permission := capabilityMap(url)
-	_, err := server0.Authenticate(permission) // ignore response
+	_, err = service0.Authenticate(permission) // ignore response
 	if err != nil {
 		log.Fatalf("%s", err)
 	}

@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
-	"github.com/lugu/qiloop/bus/client"
+	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/bus/net"
 	"log"
 	"os"
@@ -16,7 +16,7 @@ func Fuzz(data []byte) int {
 
 func test(endpoint net.EndPoint, user, token string, i int) {
 	log.Printf("Authentication attempt: %d", i)
-	err := client.AuthenticateUser(endpoint, user, token)
+	err := bus.AuthenticateUser(endpoint, user, token)
 	if err == nil {
 		log.Printf("Authentication succedded: %s", token)
 		exit(0)

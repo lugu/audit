@@ -2,9 +2,8 @@ package fuzz
 
 import (
 	"bytes"
-	"github.com/lugu/qiloop/bus/client"
+	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/bus/net"
-	"github.com/lugu/qiloop/bus/server"
 	"github.com/lugu/qiloop/type/value"
 	"log"
 )
@@ -18,13 +17,13 @@ const actionID = 8
 func Fuzz(data []byte) int {
 
 	buf := bytes.NewBuffer(data)
-	cm, err := server.ReadCapabilityMap(buf)
+	cm, err := bus.ReadCapabilityMap(buf)
 	if err != nil {
 		return 0
 	}
 
 	var out bytes.Buffer
-	err = server.WriteCapabilityMap(cm, &out)
+	err = bus.WriteCapabilityMap(cm, &out)
 	if err != nil {
 		panic(err)
 	}
@@ -37,21 +36,21 @@ func Fuzz2(data []byte) int {
 		log.Fatalf("failed to contact %s: %s", ServerURL, err)
 	}
 
-	clt := client.NewClient(endpoint)
+	clt := bus.NewClient(endpoint)
 	data, err0 := clt.Call(serviceID, objectID, actionID, data)
 
 	// check response
 	buf := bytes.NewBuffer(data)
-	capability, err := server.ReadCapabilityMap(buf)
+	capability, err := bus.ReadCapabilityMap(buf)
 	if err == nil {
-		statusValue, ok := capability[client.KeyState]
+		statusValue, ok := capability[bus.KeyState]
 		if ok {
 			status, ok := statusValue.(value.IntValue)
 			if ok {
 				switch uint32(status) {
-				case client.StateDone:
+				case bus.StateDone:
 					panic("password found")
-				case client.StateContinue:
+				case bus.StateContinue:
 					panic("token renewal")
 				}
 			}
@@ -64,7 +63,7 @@ func Fuzz2(data []byte) int {
 		panic("gateway has crashed")
 	}
 
-	err = client.Authenticate(endpoint2)
+	err = bus.Authenticate(endpoint2)
 	endpoint2.Close()
 	if err != nil {
 		panic("gateway is broken")

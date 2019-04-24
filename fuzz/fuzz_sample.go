@@ -3,13 +3,12 @@ package fuzz
 import (
 	"bytes"
 	"fmt"
-	"github.com/lugu/qiloop/bus/client"
-	"github.com/lugu/qiloop/bus/server"
+	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/type/value"
 	"os"
 )
 
-type CapabilityMap client.CapabilityMap
+type CapabilityMap bus.CapabilityMap
 
 func (cm CapabilityMap) WithBasics() {
 	cm["ClientServerSocket"] = value.Bool(true)
@@ -56,39 +55,39 @@ func (cm CapabilityMap) WithStrings() {
 }
 
 func (cm CapabilityMap) WithCredential(user, token string) {
-	cm[client.KeyUser] = value.String(user)
-	cm[client.KeyToken] = value.String(token)
+	cm[bus.KeyUser] = value.String(user)
+	cm[bus.KeyToken] = value.String(token)
 }
 
-func basicNao() client.CapabilityMap {
+func basicNao() bus.CapabilityMap {
 	cm := CapabilityMap{}
 	cm.WithBasics()
 	cm.WithCredential("nao", "nao")
-	return client.CapabilityMap(cm)
+	return bus.CapabilityMap(cm)
 }
 
-func justNao() client.CapabilityMap {
+func justNao() bus.CapabilityMap {
 	cm := CapabilityMap{}
 	cm.WithCredential("nao", "nao")
-	return client.CapabilityMap(cm)
+	return bus.CapabilityMap(cm)
 }
 
-func extraNao() client.CapabilityMap {
+func extraNao() bus.CapabilityMap {
 	cm := CapabilityMap{}
 	cm.WithExtras()
 	cm.WithCredential("nao", "nao")
-	return client.CapabilityMap(cm)
+	return bus.CapabilityMap(cm)
 }
 
-func stringsNao() client.CapabilityMap {
+func stringsNao() bus.CapabilityMap {
 	cm := CapabilityMap{}
 	cm.WithStrings()
 	cm.WithCredential("nao", "nao")
-	return client.CapabilityMap(cm)
+	return bus.CapabilityMap(cm)
 }
 
-func GetSamples() map[string]client.CapabilityMap {
-	samples := make(map[string]client.CapabilityMap)
+func GetSamples() map[string]bus.CapabilityMap {
+	samples := make(map[string]bus.CapabilityMap)
 	samples["basic"] = basicNao()
 	samples["nao"] = justNao()
 	samples["extra"] = extraNao()
@@ -96,13 +95,13 @@ func GetSamples() map[string]client.CapabilityMap {
 	return samples
 }
 
-func WriteSample(filename string, cm client.CapabilityMap) error {
+func WriteSample(filename string, cm bus.CapabilityMap) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	var buf bytes.Buffer
-	err = server.WriteCapabilityMap(cm, &buf)
+	err = bus.WriteCapabilityMap(cm, &buf)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lugu/qiloop/bus/server/directory"
+	"github.com/lugu/qiloop/bus/directory"
 	"log"
 )
 
