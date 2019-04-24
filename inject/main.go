@@ -11,8 +11,8 @@ import (
 	"github.com/lugu/qiloop/type/basic"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
+	"io"
 	"log"
-	gonet "net"
 	"time"
 )
 
@@ -153,27 +153,31 @@ func test0() {
 	}
 }
 
-func listenConnect(network, address string, done chan int) {
-	l, err := gonet.Listen(network, address)
-	if err != nil {
-		log.Fatalf("cannot listen %s: %s", address, err)
-	}
-	_, err = l.Accept()
-	if err != nil {
-		log.Printf("connection error: %s", err)
-	}
-	done <- 1
+type objectReferenceValue struct {
 }
 
-func capabilityMap(addr string) bus.CapabilityMap {
-	log.Printf("TODO: capabilityMap: not yet implemented")
+func (o *objectReferenceValue) Signature() string {
+	return "(bIII)<ObjectReference,boolean,parentID,serviceID,objectID>"
+
+}
+
+func (o *objectReferenceValue) Write(w io.Writer) error {
+	basic.WriteString(o.Signature(), w)
+	basic.WriteBool(false, w)    // not followed by a meta object
+	basic.WriteUint32(2^11, w)   // unknown meta object ID
+	basic.WriteUint32(0, w)      // service ID
+	basic.WriteUint32(2^31+1, w) // object ID
+	return nil
+}
+
+func capabilityMap() bus.CapabilityMap {
+
 	return bus.CapabilityMap{
 		"ClientServerSocket":    value.Bool(true),
 		"MessageFlags":          value.Bool(true),
 		"MetaObjectCache":       value.Bool(true),
 		"RemoteCancelableCalls": value.Bool(true),
-		"Hello":                 value.String(addr),
-		// TODO: include an ObjectReference here.
+		"Hello":                 &objectReferenceValue{},
 	}
 }
 
@@ -301,17 +305,30 @@ func test5() {
 // test 6: authenticate with an object
 //	1. connect to service
 //	2. authenticate with an object
-//	3. wait for an incomming connection
-//	=> can by-pass authentication
+//	3. wait for an incomming message
+//	=> can initiate communication without authentication
 func test6() {
 	log.Printf("test6: authenticate with a remote object")
 	done := make(chan int)
 	wait := time.After(time.Second * 5)
 	endpoint := connect(*VictimAddr, false)
-	network := "tcp"
-	address := "127.0.0.1:6754"
-	url := network + "://" + address
-	go listenConnect(network, address, done)
+	objectID := uint32(2 ^ 31 + 1)
+
+	f := func(hdr *net.Header) (matched bool, keep bool) {
+		if hdr.Object == objectID {
+			return true, false
+		}
+		return false, true
+	}
+	c := func(msg *net.Message) error {
+		log.Printf("response: %#v", *msg)
+		done <- 1
+		return nil
+	}
+	cl := func(err error) {
+		log.Printf("error: %s", err)
+	}
+	endpoint.AddHandler(f, c, cl)
 
 	// Service zero is not a registered service. Create a cached
 	// session to resolve its name manually.
@@ -323,11 +340,12 @@ func test6() {
 		log.Fatalf("failed to connect log manager: %s", err)
 	}
 
-	permission := capabilityMap(url)
+	permission := capabilityMap()
 	_, err = service0.Authenticate(permission) // ignore response
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
+
 	select {
 	case _ = <-done:
 		log.Printf("success")
