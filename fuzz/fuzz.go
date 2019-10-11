@@ -3,19 +3,35 @@ package fuzz
 import (
 	"bytes"
 	"log"
+	"time"
 
 	"github.com/lugu/qiloop/bus"
+	dir "github.com/lugu/qiloop/bus/directory"
 	"github.com/lugu/qiloop/bus/net"
-	"github.com/lugu/qiloop/type/value"
+	"github.com/lugu/qiloop/bus/session/token"
+	"github.com/lugu/qiloop/bus/util"
 )
 
-var ServerURL string = "tcps://localhost:9503"
+var serverURL string = "tcps://localhost:9503"
 
-const serviceID = 0
-const objectID = 0
-const actionID = 8
+func init() {
+	serverURL = util.NewUnixAddr()
+	user, token := token.GetUserToken()
+	server, err := dir.NewServer(serverURL, bus.Dictionary(
+		map[string]string{
+			user: token,
+		},
+	))
 
-func Fuzz0(data []byte) int {
+	go func() {
+		err = <-server.WaitTerminate()
+		if err != nil {
+			log.Fatalf("Server: failed with error %s", err)
+		}
+	}()
+}
+
+func NoFuzzReader(data []byte) int {
 
 	buf := bytes.NewBuffer(data)
 	cm, err := bus.ReadCapabilityMap(buf)
@@ -32,42 +48,61 @@ func Fuzz0(data []byte) int {
 }
 
 func Fuzz(data []byte) int {
-	endpoint, err := net.DialEndPoint(ServerURL)
+
+	const serviceID = 0
+	const objectID = 0
+	const actionID = 8
+
+	const timeout = 3 * time.Second
+
+	endpoint, err := net.DialEndPoint(serverURL)
 	if err != nil {
-		log.Fatalf("failed to contact %s: %s", ServerURL, err)
+		log.Fatalf("failed to contact %s: %s", serverURL, err)
 	}
 
-	clt := bus.NewClient(endpoint)
-	data, err0 := clt.Call(serviceID, objectID, actionID, data)
+	ch := make(chan bool, 1)
+	defer close(ch)
 
-	// check response
-	buf := bytes.NewBuffer(data)
-	capability, err := bus.ReadCapabilityMap(buf)
-	if err == nil {
-		statusValue, ok := capability[bus.KeyState]
-		if ok {
-			status, ok := statusValue.(value.IntValue)
-			if ok {
-				switch uint32(status) {
-				case bus.StateDone:
-					panic("password found")
-				case bus.StateContinue:
-					panic("token renewal")
-				}
-			}
+	var err0 error
+	go func() {
+		clt := bus.NewClient(endpoint)
+		_, err0 = clt.Call(serviceID, objectID, actionID, data)
+		ch <- true
+	}()
+	timer := time.NewTimer(timeout)
+
+	select {
+	case <-ch:
+		timer.Stop()
+		endpoint.Close()
+	case <-timer.C:
+		endpoint.Close()
+		panic("gateway timeout1")
+	}
+
+	ch = make(chan bool, 1)
+
+	go func() {
+		// check if everything is still OK.
+		endpoint, err = net.DialEndPoint(serverURL)
+		if err != nil {
+			panic("gateway has crashed")
 		}
-	}
+		err = bus.Authenticate(endpoint)
+		if err != nil {
+			panic("gateway is broken")
+		}
+		ch <- true
+	}()
 
-	// check if everything is still OK.
-	endpoint2, err := net.DialEndPoint(ServerURL)
-	if err != nil {
-		panic("gateway has crashed")
-	}
-
-	err = bus.Authenticate(endpoint2)
-	endpoint2.Close()
-	if err != nil {
-		panic("gateway is broken")
+	timer = time.NewTimer(timeout)
+	select {
+	case <-ch:
+		timer.Stop()
+		endpoint.Close()
+	case <-timer.C:
+		endpoint.Close()
+		panic("gateway timeout2")
 	}
 
 	if err0 == nil {

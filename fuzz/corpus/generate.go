@@ -1,8 +1,8 @@
+//go:generate go run .
+
 package main
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,24 +11,40 @@ import (
 	gofuzz "github.com/google/gofuzz"
 	"github.com/lugu/audit/fuzz"
 	"github.com/lugu/qiloop/bus"
+	dir "github.com/lugu/qiloop/bus/directory"
 	"github.com/lugu/qiloop/bus/net"
+	"github.com/lugu/qiloop/bus/session/token"
+	"github.com/lugu/qiloop/bus/util"
 	"github.com/lugu/qiloop/type/basic"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
 )
 
-var ServerURL string = "tcps://localhost:9503"
+var serverURL string = "tcps://localhost:9503"
 
-const serviceID = 0
-const objectID = 0
-const actionID = 8
+func init() {
+	serverURL = util.NewUnixAddr()
+	user, token := token.GetUserToken()
+	server, err := dir.NewServer(serverURL, bus.Dictionary(
+		map[string]string{
+			user: token,
+		},
+	))
+
+	go func() {
+		err = <-server.WaitTerminate()
+		if err != nil {
+			log.Fatalf("Server: failed with error %s", err)
+		}
+	}()
+}
 
 type objectReferenceValue struct {
 	ref object.ObjectReference
 }
 
 func (o objectReferenceValue) Signature() string {
-	return "o"
+	return "(({I(Issss[(ss)<MetaMethodParameter,name,description>]s)<MetaMethod,uid,returnSignature,name,parametersSignature,description,parameters,returnDescription>}{I(Iss)<MetaSignal,uid,name,signature>}{I(Iss)<MetaProperty,uid,name,signature>}s)<MetaObject,methods,signals,properties,description>II)<ObjectReference,metaObject,serviceID,objectID>"
 }
 
 func (o objectReferenceValue) Write(w io.Writer) error {
@@ -109,75 +125,15 @@ func makeCap(f *gofuzz.Fuzzer) bus.CapabilityMap {
 	return permission
 }
 
-func Fuzz3() {
-	fuzzer := gofuzz.New().NilChance(0).Funcs(makeValue).NumElements(1, 100)
-	for i := 0; i < 10; i++ {
-		perm := makeCap(fuzzer)
-		fmt.Printf("%#v\n", perm)
-
-		var buf bytes.Buffer
-		err := bus.WriteCapabilityMap(perm, &buf)
-		if err != nil {
-			panic(err)
-		}
-		cm, err := bus.ReadCapabilityMap(&buf)
-		if err != nil && err != io.EOF {
-			panic(err)
-		}
-		fmt.Printf("%#v\n", cm)
-	}
-}
-
-func authenticateCall(e net.EndPoint, p bus.CapabilityMap) error {
-
-	cache := bus.NewCache(e)
-	cache.AddService("ServiceZero", 0, object.MetaService0)
-	proxies := bus.Services(cache)
-	service0, err := proxies.ServiceServer()
-	if err != nil {
-		return err
-	}
-
-	resp, err := service0.Authenticate(p)
-	if err != nil {
-		return fmt.Errorf("authentication failed: %s", err)
-	}
-
-	statusValue, ok := resp[bus.KeyState]
-	if !ok {
-		return fmt.Errorf("missing authentication state")
-	}
-	status, ok := statusValue.(value.UintValue)
-	if !ok {
-		status2, ok := statusValue.(value.IntValue)
-		if !ok {
-			return fmt.Errorf("authentication status error (%#v)",
-				statusValue)
-		}
-		status = value.UintValue(uint32(status2.Value()))
-	}
-	switch uint32(status) {
-	case bus.StateDone:
-		return nil
-	case bus.StateContinue:
-		return nil
-	case bus.StateError:
-		return fmt.Errorf("Authentication failed")
-	default:
-		return fmt.Errorf("invalid state type: %d", status)
-	}
-}
-
-func Fuzz4() {
+func fuzzCap() {
 
 	fuzzer := gofuzz.New().NilChance(0).Funcs(makeValue).NumElements(1, 100)
-	endpoint, err := net.DialEndPoint(ServerURL)
+	endpoint, err := net.DialEndPoint(serverURL)
 	if err != nil {
-		log.Fatalf("failed to contact %s: %s", ServerURL, err)
+		log.Fatalf("failed to contact %s: %s", serverURL, err)
 	}
 	defer endpoint.Close()
 	perm := makeCap(fuzzer)
-	fmt.Printf("%#v\n", perm)
 
 	file, _ := ioutil.TempFile(".", "cap-*.bin")
 	err = bus.WriteCapabilityMap(perm, file)
@@ -185,21 +141,13 @@ func Fuzz4() {
 		panic(err)
 	}
 	file.Close()
-
-	err = authenticateCall(endpoint, perm)
-	if err == nil {
-		log.Fatalf("%#v\n", perm)
-	}
 }
 
 func main() {
-	flag.StringVar(&ServerURL, "qi-url", ServerURL,
-		"Service directory URL")
-	flag.Parse()
 
 	fuzz.WriteCorpus()
 
-	for {
-		Fuzz4()
+	for i := 0; i < 20; i++ {
+		fuzzCap()
 	}
 }
