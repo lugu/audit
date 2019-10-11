@@ -2,19 +2,20 @@ package fuzz
 
 import (
 	"bytes"
+	"log"
+
 	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/bus/net"
 	"github.com/lugu/qiloop/type/value"
-	"log"
 )
 
-var ServerURL string = "tcps://127.0.0.1:9503"
+var ServerURL string = "tcps://localhost:9503"
 
 const serviceID = 0
 const objectID = 0
 const actionID = 8
 
-func Fuzz(data []byte) int {
+func Fuzz0(data []byte) int {
 
 	buf := bytes.NewBuffer(data)
 	cm, err := bus.ReadCapabilityMap(buf)
@@ -30,7 +31,7 @@ func Fuzz(data []byte) int {
 	return 1
 }
 
-func Fuzz2(data []byte) int {
+func Fuzz(data []byte) int {
 	endpoint, err := net.DialEndPoint(ServerURL)
 	if err != nil {
 		log.Fatalf("failed to contact %s: %s", ServerURL, err)

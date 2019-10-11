@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 )
@@ -59,7 +60,9 @@ func listenRAW(addr, remoteAddr string) {
 }
 
 func copyAndClose(reader io.Reader, writer io.WriteCloser) {
-	if _, err := io.Copy(writer, bufio.NewReader(reader)); err == nil {
+	file, _ := ioutil.TempFile(".", "qimessaging")
+	reader2 := io.TeeReader(reader, file)
+	if _, err := io.Copy(writer, bufio.NewReader(reader2)); err == nil {
 		writer.Close()
 	}
 }

@@ -2,14 +2,14 @@ package fuzz_test
 
 import (
 	"bytes"
-	"github.com/lugu/audit/fuzz"
-	"github.com/lugu/qiloop/bus/client"
-	"github.com/lugu/qiloop/bus/server"
-	"github.com/lugu/qiloop/bus/server/directory"
-	"github.com/lugu/qiloop/bus/util"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+
+	"github.com/lugu/audit/fuzz"
+	"github.com/lugu/qiloop/bus"
+	"github.com/lugu/qiloop/bus/directory"
+	"github.com/lugu/qiloop/bus/util"
 )
 
 func TestFuzz(t *testing.T) {
@@ -24,7 +24,7 @@ func TestFuzz(t *testing.T) {
 	}
 	addr := util.NewUnixAddr()
 
-	auth := server.Dictionary(passwords)
+	auth := bus.Dictionary(passwords)
 	server, err := directory.NewServer(addr, auth)
 	if err != nil {
 		panic(err)
@@ -41,13 +41,13 @@ func TestFuzz(t *testing.T) {
 	server.Terminate()
 }
 
-func WriteReadTest(cm client.CapabilityMap) error {
+func WriteReadTest(cm bus.CapabilityMap) error {
 	var buf bytes.Buffer
-	err := server.WriteCapabilityMap(cm, &buf)
+	err := bus.WriteCapabilityMap(cm, &buf)
 	if err != nil {
 		return err
 	}
-	_, err = server.ReadCapabilityMap(&buf)
+	_, err = bus.ReadCapabilityMap(&buf)
 	if err != nil {
 		return err
 	}
