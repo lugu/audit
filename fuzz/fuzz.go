@@ -8,7 +8,6 @@ import (
 	"github.com/lugu/qiloop/bus"
 	dir "github.com/lugu/qiloop/bus/directory"
 	"github.com/lugu/qiloop/bus/net"
-	"github.com/lugu/qiloop/bus/session/token"
 	"github.com/lugu/qiloop/bus/util"
 )
 
@@ -16,10 +15,9 @@ var serverURL string = "tcps://localhost:9503"
 
 func init() {
 	serverURL = util.NewUnixAddr()
-	user, token := token.GetUserToken()
 	server, err := dir.NewServer(serverURL, bus.Dictionary(
 		map[string]string{
-			user: token,
+			"nao": "nao",
 		},
 	))
 
@@ -31,7 +29,7 @@ func init() {
 	}()
 }
 
-func NoFuzzReader(data []byte) int {
+func FuzzSerializer(data []byte) int {
 
 	buf := bytes.NewBuffer(data)
 	cm, err := bus.ReadCapabilityMap(buf)
@@ -53,7 +51,7 @@ func Fuzz(data []byte) int {
 	const objectID = 0
 	const actionID = 8
 
-	const timeout = 3 * time.Second
+	const timeout = 5 * time.Second
 
 	endpoint, err := net.DialEndPoint(serverURL)
 	if err != nil {
@@ -88,7 +86,7 @@ func Fuzz(data []byte) int {
 		if err != nil {
 			panic("gateway has crashed")
 		}
-		err = bus.Authenticate(endpoint)
+		err = bus.AuthenticateUser(endpoint, "nao", "nao")
 		if err != nil {
 			panic("gateway is broken")
 		}

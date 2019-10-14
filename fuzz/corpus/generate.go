@@ -3,10 +3,10 @@
 package main
 
 import (
-	"fmt"
-	"io"
+	"bytes"
 	"io/ioutil"
 	"log"
+	"strings"
 
 	gofuzz "github.com/google/gofuzz"
 	"github.com/lugu/audit/fuzz"
@@ -15,7 +15,7 @@ import (
 	"github.com/lugu/qiloop/bus/net"
 	"github.com/lugu/qiloop/bus/session/token"
 	"github.com/lugu/qiloop/bus/util"
-	"github.com/lugu/qiloop/type/basic"
+	"github.com/lugu/qiloop/meta/signature"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
 )
@@ -39,27 +39,40 @@ func init() {
 	}()
 }
 
-type objectReferenceValue struct {
-	ref object.ObjectReference
-}
-
-func (o objectReferenceValue) Signature() string {
-	return "(({I(Issss[(ss)<MetaMethodParameter,name,description>]s)<MetaMethod,uid,returnSignature,name,parametersSignature,description,parameters,returnDescription>}{I(Iss)<MetaSignal,uid,name,signature>}{I(Iss)<MetaProperty,uid,name,signature>}s)<MetaObject,methods,signals,properties,description>II)<ObjectReference,metaObject,serviceID,objectID>"
-}
-
-func (o objectReferenceValue) Write(w io.Writer) error {
-	if err := basic.WriteString(o.Signature(), w); err != nil {
-		return err
+func cleanName(c gofuzz.Continue) string {
+	var name string
+	c.Fuzz(&name)
+	name = signature.CleanName(name)
+	if name == "" {
+		return cleanName(c)
 	}
-	return object.WriteObjectReference(o.ref, w)
+	return name
 }
 
-func (o objectReferenceValue) String() string {
-	return fmt.Sprintf("%s, %s", o.Signature(), o.ref)
+func makeStruct(i *value.Value, c gofuzz.Continue) {
+	var sig strings.Builder
+	var buf bytes.Buffer
+
+	sig.WriteString("(")
+	size := c.Intn(5)
+	for i := 0; i < size; i++ {
+		var val value.Value
+		makeValue(&val, c)
+		sig.WriteString(val.Signature())
+		val.Write(&buf)
+	}
+	sig.WriteString(")<")
+	sig.WriteString(cleanName(c))
+	for i := 0; i < size; i++ {
+		sig.WriteString(",")
+		sig.WriteString(cleanName(c))
+	}
+	sig.WriteString(">")
+	*i = value.Opaque(sig.String(), buf.Bytes())
 }
 
 func makeValue(i *value.Value, c gofuzz.Continue) {
-	switch c.Intn(12) {
+	switch c.Intn(13) {
 	case 0:
 		var b bool
 		c.Fuzz(&b)
@@ -107,9 +120,13 @@ func makeValue(i *value.Value, c gofuzz.Continue) {
 	case 10:
 		*i = value.Void()
 	case 11:
-		var ref objectReferenceValue
+		var ref object.ObjectReference
 		c.Fuzz(&ref)
-		*i = ref
+		var buf bytes.Buffer
+		object.WriteObjectReference(ref, &buf)
+		*i = value.Opaque("o", buf.Bytes())
+	case 12:
+		makeStruct(i, c)
 	}
 }
 

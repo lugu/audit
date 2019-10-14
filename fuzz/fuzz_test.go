@@ -8,37 +8,17 @@ import (
 
 	"github.com/lugu/audit/fuzz"
 	"github.com/lugu/qiloop/bus"
-	"github.com/lugu/qiloop/bus/directory"
-	"github.com/lugu/qiloop/bus/util"
 )
 
-func TestFuzz(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("shall panic")
-		}
-	}()
-
-	passwords := map[string]string{
-		"nao": "nao",
-	}
-	addr := util.NewUnixAddr()
-
-	auth := bus.Dictionary(passwords)
-	server, err := directory.NewServer(addr, auth)
-	if err != nil {
-		panic(err)
-	}
-
-	fuzz.ServerURL = addr
-
-	data, err := ioutil.ReadFile(filepath.Join("testdata", "cap-auth-failure.bin"))
+func TestFuzzOK(t *testing.T) {
+	data, err := ioutil.ReadFile(filepath.Join("testdata",
+		"cap-auth-failure.bin"))
 	if err != nil {
 		t.Errorf("cannot open test data %s", err)
 	}
-	fuzz.Fuzz(data)
-
-	server.Terminate()
+	if fuzz.Fuzz(data) != 1 {
+		t.Errorf("shall return 1: %d", fuzz.Fuzz(data))
+	}
 }
 
 func WriteReadTest(cm bus.CapabilityMap) error {
