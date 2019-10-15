@@ -4,11 +4,11 @@ package fuzz
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 
 	gofuzz "github.com/google/gofuzz"
 	"github.com/lugu/qiloop/bus"
-	"github.com/lugu/qiloop/meta/signature"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
 )
@@ -20,7 +20,8 @@ var (
 func cleanName(c gofuzz.Continue) string {
 	var name string
 	c.Fuzz(&name)
-	name = signature.CleanName(name)
+	exp := regexp.MustCompile(`[^a-zA-Z][^_a-zA-Z0-9]*`)
+	name = exp.ReplaceAllString(name, "")
 	if name == "" {
 		return cleanName(c)
 	}
@@ -45,7 +46,7 @@ func makeObject(i *value.Value, c gofuzz.Continue) {
 
 func makeList(i *value.Value, c gofuzz.Continue) {
 	var list value.ListValue
-	size := c.Intn(5)
+	size := c.Intn(7)
 	list = make([]value.Value, size)
 	for i := 0; i < size; i++ {
 		makeValue(&list[i], c)
@@ -58,7 +59,7 @@ func makeStruct(i *value.Value, c gofuzz.Continue) {
 	var data bytes.Buffer
 
 	sig.WriteString("(")
-	size := c.Intn(5)
+	size := c.Intn(7)
 	for i := 0; i < size; i++ {
 		var val value.Value
 		makeValue(&val, c)

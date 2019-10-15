@@ -49,7 +49,7 @@ func TestCaps(t *testing.T) {
 		var buf bytes.Buffer
 		err := bus.WriteCapabilityMap(perm, &buf)
 		if err != nil {
-			t.Errorf("failed on wirte: %s", err)
+			t.Errorf("failed on write: %s", err)
 		}
 		if fuzz.Fuzz(buf.Bytes()) != 1 {
 			t.Errorf("shall return 1: %d", fuzz.Fuzz(buf.Bytes()))
