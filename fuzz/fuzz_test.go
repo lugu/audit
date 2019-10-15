@@ -42,3 +42,17 @@ func TestSamples(t *testing.T) {
 		}
 	}
 }
+
+func TestCaps(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		perm := fuzz.MakeCap()
+		var buf bytes.Buffer
+		err := bus.WriteCapabilityMap(perm, &buf)
+		if err != nil {
+			t.Errorf("failed on wirte: %s", err)
+		}
+		if fuzz.Fuzz(buf.Bytes()) != 1 {
+			t.Errorf("shall return 1: %d", fuzz.Fuzz(buf.Bytes()))
+		}
+	}
+}

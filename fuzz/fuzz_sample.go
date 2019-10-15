@@ -3,9 +3,11 @@ package fuzz
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/type/value"
-	"os"
 )
 
 type CapabilityMap bus.CapabilityMap
@@ -96,7 +98,9 @@ func GetSamples() map[string]bus.CapabilityMap {
 }
 
 func WriteSample(filename string, cm bus.CapabilityMap) error {
+
 	file, err := os.Create(filename)
+
 	if err != nil {
 		return err
 	}
@@ -112,9 +116,10 @@ func WriteSample(filename string, cm bus.CapabilityMap) error {
 	return nil
 }
 
-func WriteCorpus() {
+func WriteCorpus(dir string) {
 	for name, metacap := range GetSamples() {
-		err := WriteSample("cap-auth-"+name+".bin", metacap)
+		filename := filepath.Join(dir, "cap-auth-"+name+".bin")
+		err := WriteSample(filename, metacap)
 		if err != nil {
 			fmt.Errorf("failed to write %s: %s", name, err)
 		}
