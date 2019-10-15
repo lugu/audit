@@ -9,7 +9,6 @@ import (
 	gofuzz "github.com/google/gofuzz"
 	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/meta/signature"
-	"github.com/lugu/qiloop/type/basic"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
 )
@@ -32,7 +31,6 @@ func makeEmbeddedValue(i *value.Value, c gofuzz.Continue) {
 	var v value.Value
 	makeValue(&v, c)
 	var buf bytes.Buffer
-	basic.WriteString(v.Signature(), &buf)
 	v.Write(&buf)
 	*i = value.Opaque("m", buf.Bytes())
 }
@@ -57,7 +55,7 @@ func makeList(i *value.Value, c gofuzz.Continue) {
 
 func makeStruct(i *value.Value, c gofuzz.Continue) {
 	var sig strings.Builder
-	var buf bytes.Buffer
+	var data bytes.Buffer
 
 	sig.WriteString("(")
 	size := c.Intn(5)
@@ -65,7 +63,7 @@ func makeStruct(i *value.Value, c gofuzz.Continue) {
 		var val value.Value
 		makeValue(&val, c)
 		sig.WriteString(val.Signature())
-		val.Write(&buf)
+		data.Write(value.Bytes(val))
 	}
 	sig.WriteString(")<")
 	sig.WriteString(cleanName(c))
@@ -74,7 +72,7 @@ func makeStruct(i *value.Value, c gofuzz.Continue) {
 		sig.WriteString(cleanName(c))
 	}
 	sig.WriteString(">")
-	*i = value.Opaque(sig.String(), buf.Bytes())
+	*i = value.Opaque(sig.String(), data.Bytes())
 }
 
 func makeValue(i *value.Value, c gofuzz.Continue) {
