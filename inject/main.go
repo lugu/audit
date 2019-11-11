@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
+	"log"
+	"time"
+
 	"github.com/lugu/qiloop/bus"
 	"github.com/lugu/qiloop/bus/net"
 	"github.com/lugu/qiloop/bus/services"
@@ -11,9 +15,6 @@ import (
 	"github.com/lugu/qiloop/type/basic"
 	"github.com/lugu/qiloop/type/object"
 	"github.com/lugu/qiloop/type/value"
-	"io"
-	"log"
-	"time"
 )
 
 var DirectoryAddr *string
@@ -64,7 +65,7 @@ func listenServiceAddedSignal(addr string, done chan int, tag string) func() {
 		log.Fatalf("failed to connect: %s", err)
 	}
 	proxies := services.Services(sess)
-	directory, err := proxies.ServiceDirectory()
+	directory, err := proxies.ServiceDirectory(nil)
 	if err != nil {
 		log.Fatalf("failed to connect log manager: %s", err)
 	}
