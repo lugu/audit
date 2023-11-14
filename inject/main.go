@@ -17,8 +17,10 @@ import (
 	"github.com/lugu/qiloop/type/value"
 )
 
-var DirectoryAddr *string
-var VictimAddr *string
+var (
+	DirectoryAddr *string
+	VictimAddr    *string
+)
 
 func messageCallMachineID() net.Message {
 	serviceID := uint32(1) // serviceDirectory
@@ -37,7 +39,6 @@ func callMessages() []net.Message {
 }
 
 func listenReply(endpoint net.EndPoint, done chan int) {
-
 	filter := func(hdr *net.Header) (matched bool, keep bool) {
 		log.Printf("response: %v", *hdr)
 		if hdr.ID == 55555 {
@@ -64,8 +65,7 @@ func listenServiceAddedSignal(addr string, done chan int, tag string) func() {
 	if err != nil {
 		log.Fatalf("failed to connect: %s", err)
 	}
-	proxies := services.Services(sess)
-	directory, err := proxies.ServiceDirectory(nil)
+	directory, err := services.ServiceDirectory(sess)
 	if err != nil {
 		log.Fatalf("failed to connect log manager: %s", err)
 	}
@@ -154,12 +154,10 @@ func test0() {
 	}
 }
 
-type objectReferenceValue struct {
-}
+type objectReferenceValue struct{}
 
 func (o *objectReferenceValue) Signature() string {
 	return "(bIII)<ObjectReference,boolean,parentID,serviceID,objectID>"
-
 }
 
 func (o *objectReferenceValue) Write(w io.Writer) error {
@@ -172,7 +170,6 @@ func (o *objectReferenceValue) Write(w io.Writer) error {
 }
 
 func capabilityMap() bus.CapabilityMap {
-
 	return bus.CapabilityMap{
 		"ClientServerSocket":    value.Bool(true),
 		"MessageFlags":          value.Bool(true),
@@ -183,10 +180,10 @@ func capabilityMap() bus.CapabilityMap {
 }
 
 // test 1: post a signal directly to a service
-//	1. connect to service
-//	2. authenticate
-//	3. post a signal to the service
-//	=> can impersonate a service
+//  1. connect to service
+//  2. authenticate
+//  3. post a signal to the service
+//     => can impersonate a service
 func test1() {
 	log.Printf("test 1: post a signal to the service")
 	done := make(chan int)
@@ -208,9 +205,9 @@ func test1() {
 }
 
 // test 2: post a signal directly to the targeted service
-//	1. connect to service
-//	2. post a signal to the service
-//	=> can by-pass authentication
+//  1. connect to service
+//  2. post a signal to the service
+//     => can by-pass authentication
 func test2() {
 	log.Printf("test2: post a signal to the service without authentication")
 	done := make(chan int)
@@ -232,10 +229,10 @@ func test2() {
 }
 
 // test 3: post a signal directly to the targeted service
-//	1. connect to service
-//	2. authenticate
-//	3. post a signal to another service
-// 	=> can by-pass authentication
+//  1. connect to service
+//  2. authenticate
+//  3. post a signal to another service
+//     => can by-pass authentication
 func test3() {
 	log.Printf("test3: post a signal to a remote service")
 	done := make(chan int)
@@ -257,9 +254,9 @@ func test3() {
 }
 
 // test 4: call a method directly to the targeted service
-//	1. connect to service
-//	2. call a method of the service
-//	=> can by-pass authentication
+//  1. connect to service
+//  2. call a method of the service
+//     => can by-pass authentication
 func test4() {
 	log.Printf("test4: call a method without authentication")
 	done := make(chan int)
@@ -280,10 +277,10 @@ func test4() {
 }
 
 // test 5: call a method to a remote object
-//	1. connect to service
-//	2. authenticate
-//	3. call a method of another service
-//	=> can by-pass authentication
+//  1. connect to service
+//  2. authenticate
+//  3. call a method of another service
+//     => can by-pass authentication
 func test5() {
 	log.Printf("test5: call a method to a remote object")
 	done := make(chan int)
@@ -304,10 +301,10 @@ func test5() {
 }
 
 // test 6: authenticate with an object
-//	1. connect to service
-//	2. authenticate with an object
-//	3. wait for an incomming message
-//	=> can initiate communication without authentication
+//  1. connect to service
+//  2. authenticate with an object
+//  3. wait for an incomming message
+//     => can initiate communication without authentication
 func test6() {
 	log.Printf("test6: authenticate with a remote object")
 	done := make(chan int)
@@ -335,8 +332,7 @@ func test6() {
 	// session to resolve its name manually.
 	cache := bus.NewCache(endpoint)
 	cache.AddService("ServiceZero", 0, object.MetaService0)
-	proxies := bus.Services(cache)
-	service0, err := proxies.ServiceServer()
+	service0, err := bus.ServiceServer(cache)
 	if err != nil {
 		log.Fatalf("failed to connect log manager: %s", err)
 	}
@@ -356,7 +352,6 @@ func test6() {
 }
 
 func main() {
-
 	VictimAddr = flag.String("qi-url-victim",
 		"tcp://127.0.0.1:9559", "open service to inject packets")
 	DirectoryAddr = flag.String("qi-url-directory",

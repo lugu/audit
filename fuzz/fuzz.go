@@ -2,6 +2,7 @@ package fuzz
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"time"
 
@@ -30,7 +31,6 @@ func init() {
 }
 
 func FuzzSerializer(data []byte) int {
-
 	buf := bytes.NewBuffer(data)
 	cm, err := bus.ReadCapabilityMap(buf)
 	if err != nil {
@@ -46,7 +46,6 @@ func FuzzSerializer(data []byte) int {
 }
 
 func Fuzz(data []byte) int {
-
 	const serviceID = 0
 	const objectID = 0
 	const actionID = 8
@@ -57,14 +56,16 @@ func Fuzz(data []byte) int {
 	if err != nil {
 		log.Fatalf("failed to contact %s: %s", serverURL, err)
 	}
+	channel := bus.NewContext(endpoint)
 
 	ch := make(chan bool, 1)
 	defer close(ch)
 
 	var err0 error
 	go func() {
-		clt := bus.NewClient(endpoint)
-		_, err0 = clt.Call(serviceID, objectID, actionID, data)
+		ctx := context.Background()
+		clt := bus.NewClient(channel)
+		_, err0 = clt.Call(ctx.Done(), serviceID, objectID, actionID, data)
 		ch <- true
 	}()
 	timer := time.NewTimer(timeout)
