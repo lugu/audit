@@ -12,6 +12,8 @@ github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/
 github.com/integrii/flaggy v1.5.2/go.mod h1:dO13u7SYuhk910nayCJ+s1DeAAGC1THCMj1uSFmwtQ8=
 github.com/lugu/qiloop v0.14.0 h1:2y+GhBKXai276ax0JQUzN1C74q+usn7lUAjYj5QAvC0=
 github.com/lugu/qiloop v0.14.0/go.mod h1:oVSHAi0h7kScqQcBFQC/UJM5VXmP0P6XTsLXiyPhwyc=
+github.com/lugu/qiloop v0.14.2 h1:NgZLOZVQaO2CdxskRMQP6wN1mpW4jLmxs+FXOmw31K8=
+github.com/lugu/qiloop v0.14.2/go.mod h1:q2SU1seijS2tSq4f9wJir5WfAPriNeI+/akEgC5xLDY=
 github.com/mattes/go-asciibot v0.0.0-20190603170252-3fa6d766c482/go.mod h1:akTvhl4803od3DOIWgnTKgOJx3Pevvt7BU9pRrKdRVA=
 github.com/prataprc/goparsec v0.0.0-20211219142520-daac0e635e7e h1:7teoyCCMBovX+/L3/C2adcGNJI6Tsx6a2hbWQ8vWoO8=
 github.com/prataprc/goparsec v0.0.0-20211219142520-daac0e635e7e/go.mod h1:YbpxZqbf10o5u96/iDpcfDQmbIOTX/iNCH/yBByTfaM=
@@ -47,6 +49,8 @@ golang.org/x/sys v0.8.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.14.0 h1:Vz7Qs629MkJkGyHxUlRHizWJRG2j8fbQKjELVSNhy7Q=
 golang.org/x/sys v0.14.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
+golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
 golang.org/x/term v0.5.0/go.mod h1:jMB1sMXY+tzblOD4FWmEbocvup2/aLOaQEp7JmGp78k=
